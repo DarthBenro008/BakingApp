@@ -1,0 +1,28 @@
+<resources>
+    <string name="app_name">BakingApp</string>
+
+    <!-- TODO: Remove or change this placeholder text -->
+    <string name="hello_blank_fragment">Hello blank fragment</string>
+    <string name="ingredient_title">Ingredients</string>
+    <string name="steps_title">Steps</string>
+    <string name="no_internet">Please check your internet connectivity</string>
+    <string name="next_button">Next</string>
+    <string name="prev_button">Previous</string>
+    <string name="mp4">.mp4</string>
+    <string name="appwidget_text">EXAMPLE</string>
+    <string name="add_widget">Add widget</string>
+    <string name="widget_empty_view_text">Click a recipe to display ingredients!</string>
+
+    <!-- Key name for storing the list of ingredients in SharedPreferences -->
+    <string name="pref_ingredient_list_key">pref_ingredient_list</string>
+    <!-- Key name for storing the recipe name in SharedPreferences -->
+    <string name="pref_recipe_name_key">pref_recipe_name</string>
+    <!-- Key name for storing the recipe id in SharedPreferences -->
+    <string name="pref_recipe_id_key">pref_recipe_id</string>
+    <!-- Key name for storing the list of steps in SharedPreferences -->
+    <string name="pref_step_list_key">pref_step_list</string>
+    <!-- Key name for storing servings in SharedPreferences -->
+    <string name="pref_servings_key">pref_servings</string>
+    <!-- Key name for storing the image URL in SharedPreferences -->
+    <string name="pref_image_key">pref_image</string>
+</resources>
