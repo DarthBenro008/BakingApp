@@ -113,6 +113,18 @@ public class PlayerFragment extends Fragment implements Player.EventListener {
         return v;
     }
 
+    @Override
+    public void onResume() {
+        super.onResume();
+        hideSystemUi();
+        // Before API level 24 we wait as long as possible until we grab resources, so we wait until
+        // onResume() before initializing the player.
+        if (Util.SDK_INT <= Build.VERSION_CODES.M || player == null) {
+            // Initialize the player if the step of the recipe has a video URL
+            initializePlayer(hasVideoUrl);
+        }
+    }
+
     @SuppressLint("InlinedApi")
     private void hideSystemUi() {
         if (getResources().getConfiguration().orientation == Configuration.ORIENTATION_LANDSCAPE) {
@@ -309,6 +321,7 @@ public class PlayerFragment extends Fragment implements Player.EventListener {
         if (player != null) {
             updateCurrentPosition();
             player.release();
+            player = null;
         }
     }
     private void updateCurrentPosition() {
