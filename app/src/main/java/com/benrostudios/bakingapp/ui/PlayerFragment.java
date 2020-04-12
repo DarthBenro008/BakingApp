@@ -5,9 +5,11 @@ import android.content.Context;
 import android.content.res.Configuration;
 import android.media.Image;
 import android.net.Uri;
+import android.os.Build;
 import android.os.Bundle;
 
 import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
 
 import android.util.Log;
@@ -53,7 +55,7 @@ import java.util.List;
 import butterknife.BindView;
 import butterknife.ButterKnife;
 
-public class PlayerFragment extends Fragment implements Player.EventListener{
+public class PlayerFragment extends Fragment implements Player.EventListener {
     private StepsBean steps;
     private SimpleExoPlayer player;
     private boolean hasVideoUrl;
@@ -61,12 +63,13 @@ public class PlayerFragment extends Fragment implements Player.EventListener{
     private String mThumbnailUrl;
     private long mPlaybackPosition;
     private int mCurrentWindow;
+    private boolean isPlayerReady = true;
     private Boolean isTwoPane;
     private final String savedpos = "SAVEDPOS";
     private final String savedwin = "SAVEDWINDOW";
-    private static final String STEPS_LIST  = "stepsList";
+    private final String savedStates = "ISPPLAYERREDAY";
+    private static final String STEPS_LIST = "stepsList";
     private static final String IS_TWO_PANE = "isTwoPane";
-
 
 
     @BindView(R.id.player_view)
@@ -75,6 +78,7 @@ public class PlayerFragment extends Fragment implements Player.EventListener{
     TextView desc;
     @BindView(R.id.no_vid_image)
     ImageView imageView;
+
     public PlayerFragment() {
 
     }
@@ -82,9 +86,9 @@ public class PlayerFragment extends Fragment implements Player.EventListener{
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        steps =(StepsBean) getArguments().getSerializable(STEPS_LIST);
-
+        steps = (StepsBean) getArguments().getSerializable(STEPS_LIST);
         isTwoPane = getArguments().getBoolean(IS_TWO_PANE);
+
     }
 
     @Override
@@ -92,19 +96,18 @@ public class PlayerFragment extends Fragment implements Player.EventListener{
                              Bundle savedInstanceState) {
         // Inflate the layout for this fragment
         View v = inflater.inflate(R.layout.fragment_player, container, false);
-        ButterKnife.bind(this,v);
+        ButterKnife.bind(this, v);
         UriParsing();
-
-        if(savedInstanceState != null){
+        if (savedInstanceState != null) {
             mCurrentWindow = savedInstanceState.getInt(savedwin);
             mPlaybackPosition = savedInstanceState.getLong(savedpos);
-        }else{
+            isPlayerReady = savedInstanceState.getBoolean(savedStates);
+        } else {
             mCurrentWindow = C.INDEX_UNSET;
             mPlaybackPosition = C.TIME_UNSET;
         }
-        initializePlayer(hasVideoUrl);
         populateDesc();
-        if(!isTwoPane){
+        if (!isTwoPane) {
             hideSystemUi();
         }
         return v;
@@ -129,38 +132,64 @@ public class PlayerFragment extends Fragment implements Player.EventListener{
 
     @Override
     public void onSaveInstanceState(@NonNull Bundle outState) {
-        outState.putInt(savedwin,mCurrentWindow);
-        outState.putLong(savedpos,mPlaybackPosition);
+
         super.onSaveInstanceState(outState);
+        updateCurrentPosition();
+        outState.putInt(savedwin, mCurrentWindow);
+        outState.putLong(savedpos, mPlaybackPosition);
+        outState.putBoolean(savedStates, isPlayerReady);
     }
 
     @Override
-    public void onDetach() {
-        if(hasVideoUrl){ updateCurrentPosition();
-            player.release();}
-        super.onDetach();
+    public void onActivityCreated(@Nullable Bundle savedInstanceState) {
+        super.onActivityCreated(savedInstanceState);
+
     }
 
-    private void UriParsing(){
+    @Override
+    public void onStart() {
+        super.onStart();
+        initializePlayer(hasVideoUrl);
+    }
+
+    @Override
+    public void onStop() {
+        super.onStop();
+        if (Util.SDK_INT > Build.VERSION_CODES.M) {
+            releasePlayer();
+        }
+    }
+
+    @Override
+    public void onPause() {
+        super.onPause();
+        // Before API level 24 there is no guarantee of onStop() being called. So we have to release
+        // the player as early as possible in onPause().
+        if (Util.SDK_INT <= Build.VERSION_CODES.M) {
+            releasePlayer();
+        }
+    }
+
+    private void UriParsing() {
         mVideoUrl = steps.getVideoURL();
         mThumbnailUrl = steps.getThumbnailURL();
-        if(mThumbnailUrl.contains(getResources().getString(R.string.mp4))){
+        if (mThumbnailUrl.contains(getResources().getString(R.string.mp4))) {
             mVideoUrl = mThumbnailUrl;
         }
 
-        if(!mVideoUrl.isEmpty()){
+        if (!mVideoUrl.isEmpty()) {
             hasVideoUrl = true;
-        }else if(!mThumbnailUrl.isEmpty()){
+        } else if (!mThumbnailUrl.isEmpty()) {
             hasVideoUrl = false;
             playerView.setVisibility(View.GONE);
-            Log.d("PlayerFragment",mThumbnailUrl);
+            Log.d("PlayerFragment", mThumbnailUrl);
             Picasso.with(getContext())
                     .load(mThumbnailUrl)
                     .placeholder(R.drawable.nothing)
                     .error(R.drawable.nothing)
                     .centerCrop()
                     .into(imageView);
-        }else{
+        } else {
             hasVideoUrl = false;
             playerView.setVisibility(View.GONE);
             imageView.setImageResource(R.drawable.nothing);
@@ -168,7 +197,7 @@ public class PlayerFragment extends Fragment implements Player.EventListener{
 
     }
 
-    private void populateDesc(){
+    private void populateDesc() {
         desc.setText(steps.getDescription());
     }
 
@@ -185,7 +214,7 @@ public class PlayerFragment extends Fragment implements Player.EventListener{
                 // Set the ExoPlayer to the playerView
                 playerView.setPlayer(player);
 
-                player.setPlayWhenReady(true);
+                player.setPlayWhenReady(isPlayerReady);
             }
 
             // Set the Player.EventListener to this fragment
@@ -197,14 +226,17 @@ public class PlayerFragment extends Fragment implements Player.EventListener{
 
 
             boolean haveStartPosition = mCurrentWindow != C.INDEX_UNSET;
+
             if (haveStartPosition) {
 
                 player.seekTo(mCurrentWindow, mPlaybackPosition);
+
             }
             // The boolean flags indicate whether to reset position and state of the player
-            player.prepare(mediaSource,!haveStartPosition,false);
+            player.prepare(mediaSource, !haveStartPosition, false);
         }
     }
+
     private MediaSource buildMediaSource(Uri mediaUri) {
         String userAgent = Util.getUserAgent(this.getContext(), getString(R.string.app_name));
         return new ExtractorMediaSource.Factory(new DefaultHttpDataSourceFactory(userAgent))
@@ -266,16 +298,24 @@ public class PlayerFragment extends Fragment implements Player.EventListener{
         PlayerFragment myFragment = new PlayerFragment();
 
         Bundle args = new Bundle();
-        args.putSerializable(STEPS_LIST,steps);
-        args.putBoolean(IS_TWO_PANE,isTwoPane);
+        args.putSerializable(STEPS_LIST, steps);
+        args.putBoolean(IS_TWO_PANE, isTwoPane);
         myFragment.setArguments(args);
         return myFragment;
     }
 
+
+    private void releasePlayer() {
+        if (player != null) {
+            updateCurrentPosition();
+            player.release();
+        }
+    }
     private void updateCurrentPosition() {
         if (player != null) {
             mPlaybackPosition = player.getCurrentPosition();
             mCurrentWindow = player.getCurrentWindowIndex();
+            isPlayerReady = player.getPlayWhenReady();
         }
     }
 }
